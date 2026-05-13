@@ -1,0 +1,44 @@
+# ========================================
+# StickyBoard .gitignore
+# ========================================
+
+# ── Python ──
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Database ──
+*.db
+*.sqlite3
+
+# ── CSV data (generated at runtime) ──
+users.csv
+notes.csv
+
+# ── Environment ──
+.env
+.env.local
+.env.*.local
+
+# ── IDE / Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── OS ──
+desktop.ini
+ehthumbs.db
+
+# ── Logs ──
+*.log
+npm-debug.log*
