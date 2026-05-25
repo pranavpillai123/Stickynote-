@@ -1,0 +1,10 @@
+import sqlite3
+print('SQLite version:', sqlite3.sqlite_version)
+conn = sqlite3.connect(':memory:')
+c = conn.cursor()
+c.execute('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)')
+c.execute("INSERT INTO test VALUES (1, 'hello')")
+c.execute('SELECT * FROM test')
+print('Query result:', c.fetchall())
+conn.close()
+print('SQLite is fully working in venv!')

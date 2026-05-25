@@ -39,6 +39,11 @@ Thumbs.db
 desktop.ini
 ehthumbs.db
 
+# ── Node / React ──
+node_modules/
+frontend/dist/
+frontend/.vite/
+
 # ── Logs ──
 *.log
 npm-debug.log*
