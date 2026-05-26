@@ -25,22 +25,44 @@ export const api = {
     return data;
   },
 
-  async sendOTP(username, email, phoneNumber) {
+  async sendOTP(username, email, phoneNumber, channel = 'phone') {
     const res = await apiFetch('/otp/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, phone_number: phoneNumber }),
+      body: JSON.stringify({
+        username,
+        email: email || '',
+        phone_number: phoneNumber || '',
+        channel,
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
     return data;
   },
 
-  async register(username, email, password, phoneNumber, otp) {
+  async verifyOTP(otp, channel = 'phone', target = '') {
+    const res = await apiFetch('/otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ otp, channel, target }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'OTP verification failed');
+    return data;
+  },
+
+  async register(username, email, password, phoneNumber, reminderMethod = 'whatsapp') {
     const res = await apiFetch('/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password, phone_number: phoneNumber, otp }),
+      body: JSON.stringify({
+        username,
+        email: email || '',
+        password,
+        phone_number: phoneNumber || '',
+        reminder_method: reminderMethod,
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Registration failed');
@@ -80,5 +102,23 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to save notes');
     return res.json();
+  },
+
+  // ── Reminder Settings ──
+  async getReminderSettings() {
+    const res = await apiFetch('/reminder-settings');
+    if (!res.ok) throw new Error('Failed to load reminder settings');
+    return res.json();
+  },
+
+  async toggleReminderSetting(reminderMethod) {
+    const res = await apiFetch('/reminder-settings/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reminder_method: reminderMethod }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update reminder settings');
+    return data;
   },
 };

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useTheme } from '../hooks/useTheme';
+import { useToast } from '../components/Toast';
 import '../styles/login.css';
 
 export default function LoginPage() {
@@ -22,6 +23,11 @@ export default function LoginPage() {
   const [shakeField, setShakeField] = useState('');
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const showToast = useToast();
+
+  // Reminder preference state
+  const [showReminderPrompt, setShowReminderPrompt] = useState(false);
+  const [reminderMethod, setReminderMethod] = useState('');
 
   // Check if already logged in
   useEffect(() => {
@@ -77,8 +83,14 @@ export default function LoginPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setRegisterError('');
-    if (!regUsername || !regEmail || !regPassword || !regPhone) {
-      setRegisterError('Please fill in all fields');
+
+    if (!regUsername) {
+      setRegisterError('Username is required');
+      shake('register-username-group');
+      return;
+    }
+    if (!regEmail && !regPhone) {
+      setRegisterError('Please provide at least one: email or phone number');
       return;
     }
     if (regUsername.length < 3) {
@@ -91,21 +103,56 @@ export default function LoginPage() {
       shake('register-password-group');
       return;
     }
-    if (regPhone.length < 7) {
+    if (regPhone && regPhone.length < 7) {
       setRegisterError('Phone number must be at least 7 digits');
       shake('register-phone-group');
       return;
     }
+
+    const fullPhone = regPhone ? regCountryCode + regPhone : '';
+
+    // If both email and phone are provided, show reminder method prompt
+    if (regEmail && regPhone && !reminderMethod && !showReminderPrompt) {
+      setShowReminderPrompt(true);
+      return;
+    }
+
+    // Determine reminder method
+    let method = reminderMethod;
+    if (!method) {
+      if (regEmail && regPhone) method = 'both';
+      else if (regPhone) method = 'whatsapp';
+      else method = 'email';
+    }
+
+    // Determine first verification channel
+    let firstChannel = 'phone';
+    let isDoubleVerification = false;
+
+    if (method === 'whatsapp') {
+      firstChannel = 'phone';
+    } else if (method === 'email') {
+      firstChannel = 'email';
+    } else if (method === 'both') {
+      firstChannel = 'phone';
+      isDoubleVerification = true;
+    }
+
     setRegisterLoading(true);
     try {
-      const fullPhone = regCountryCode + regPhone;
-      await api.sendOTP(regUsername, regEmail, fullPhone);
+      const data = await api.sendOTP(regUsername, regEmail, fullPhone, firstChannel);
+      if (data.simulated) {
+        showToast('🔑', `Simulated OTP: ${data.otp}`);
+      }
       navigate('/verify-otp', {
         state: {
           username: regUsername,
           email: regEmail,
           password: regPassword,
-          phone_number: fullPhone
+          phone_number: fullPhone,
+          reminder_method: method,
+          verification_type: firstChannel,
+          is_double_verification: isDoubleVerification,
         }
       });
     } catch (err) {
@@ -113,6 +160,15 @@ export default function LoginPage() {
     } finally {
       setRegisterLoading(false);
     }
+  };
+
+  const handleReminderSelect = (method) => {
+    setReminderMethod(method);
+    setShowReminderPrompt(false);
+    // Trigger submit after setting
+    setTimeout(() => {
+      document.getElementById('register-form')?.requestSubmit();
+    }, 50);
   };
 
   const pwStrength = calcPasswordStrength(regPassword);
@@ -263,6 +319,59 @@ export default function LoginPage() {
                 <p>Start organizing your ideas today</p>
               </div>
 
+              {/* Reminder preference prompt overlay */}
+              {showReminderPrompt && (
+                <div className="reminder-prompt-overlay" style={{
+                  position: 'fixed', inset: 0, zIndex: 2000, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+                }}>
+                  <div style={{
+                    background: 'var(--bg-card, #1a1a2e)', border: '1px solid var(--border, rgba(255,255,255,0.1))',
+                    borderRadius: '16px', padding: '32px', maxWidth: '400px', width: '90%',
+                    textAlign: 'center', animation: 'slideIn 0.4s ease',
+                  }}>
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '8px', color: 'var(--text-white)' }}>
+                      📬 How would you like to receive reminders?
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '24px' }}>
+                      You can change this later in Settings
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <button
+                        className="btn-auth"
+                        style={{ height: '46px', fontSize: '0.9rem' }}
+                        onClick={() => handleReminderSelect('whatsapp')}
+                      >
+                        <span className="btn-text">📱 WhatsApp Only</span>
+                      </button>
+                      <button
+                        className="btn-auth"
+                        style={{ height: '46px', fontSize: '0.9rem', background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
+                        onClick={() => handleReminderSelect('email')}
+                      >
+                        <span className="btn-text">📧 Email Only</span>
+                      </button>
+                      <button
+                        className="btn-auth"
+                        style={{ height: '46px', fontSize: '0.9rem', background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                        onClick={() => handleReminderSelect('both')}
+                      >
+                        <span className="btn-text">✨ Both Channels</span>
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => setShowReminderPrompt(false)}
+                      style={{ marginTop: '18px', fontSize: '0.82rem' }}
+                    >
+                      ← Go back
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <form id="register-form" autoComplete="on" onSubmit={handleRegister}>
                 <div
                   className="input-group"
@@ -279,13 +388,13 @@ export default function LoginPage() {
                 </div>
 
                 <div className="input-group" id="register-email-group">
-                  <label htmlFor="register-email">Email</label>
+                  <label htmlFor="register-email">Email <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textTransform: 'none', letterSpacing: 0 }}>(optional if phone provided)</span></label>
                   <div className="input-field">
                     <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                       <polyline points="22,6 12,13 2,6" />
                     </svg>
-                    <input type="email" id="register-email" name="email" placeholder="you@example.com" required autoComplete="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
+                    <input type="email" id="register-email" name="email" placeholder="you@example.com" autoComplete="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
                   </div>
                 </div>
 
@@ -294,7 +403,7 @@ export default function LoginPage() {
                   id="register-phone-group"
                   style={shakeField === 'register-phone-group' ? { animation: 'shake 0.35s ease' } : {}}
                 >
-                  <label htmlFor="register-phone">Phone Number (for WhatsApp Reminders)</label>
+                  <label htmlFor="register-phone">Phone Number <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textTransform: 'none', letterSpacing: 0 }}>(optional if email provided)</span></label>
                   <div className="input-field phone-input-field">
                     <select
                       id="register-country-code"
@@ -317,7 +426,6 @@ export default function LoginPage() {
                       id="register-phone"
                       name="phone"
                       placeholder="Enter phone number"
-                      required
                       autoComplete="tel-national"
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value.replace(/\D/g, ''))}
@@ -367,7 +475,7 @@ export default function LoginPage() {
               </form>
 
               <div className="form-footer">
-                <p>Already have an account? <button type="button" className="link-btn" id="show-login" onClick={() => { setMode('login'); setRegisterError(''); }}>Sign in</button></p>
+                <p>Already have an account? <button type="button" className="link-btn" id="show-login" onClick={() => { setMode('login'); setRegisterError(''); setShowReminderPrompt(false); }}>Sign in</button></p>
               </div>
             </div>
           )}

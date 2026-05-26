@@ -21,13 +21,14 @@
 | Feature | Description |
 |:---:|---|
 | 🔐 | **User Authentication** — Secure login and registration with salted SHA-256 hashed passwords |
-| 📲 | **WhatsApp OTP Verification** — Verifies phone numbers using a 6-digit OTP sent via WhatsApp |
-| 🛡️ | **One Phone Per Account** — Enforces a strict one-to-one mapping between phone numbers and user accounts |
+| 📲 | **Multi-Channel Verification** — Verify phone numbers (WhatsApp) and emails via cryptographically secure 6-digit OTPs |
+| 🛡️ | **Double Verification Flow** — Option to enforce verification of both phone and email channels during registration |
 | 📝 | **Create, Edit & Delete Notes** — Full CRUD note management with a modern modal editor |
 | 🎨 | **8 Color Themes** — Yellow, Pink, Blue, Green, Purple, Orange, Teal, Rose |
 | 🌙 | **Dark & Light Mode** — Premium togglable themes, persisting user color preferences locally |
 | 🔍 | **Instant Search** — Real-time searching and filtering of notes as you type |
-| ⏰ | **Reminders** — Schedule date/time reminders for notes, sent directly to user's WhatsApp |
+| ⏰ | **Multi-Channel Reminders** — Schedule reminders sent directly to your WhatsApp, Email, or both channels |
+| ⚙️ | **Reminder Settings** — Configure your reminder channels and verify new email/phone inline from the Settings modal |
 | 🖱️ | **Drag & Drop** — Sort and reorder notes on the board by dragging them |
 | 🗑️ | **Delete Account** — Permanent account removal, cascade-deleting all notes and notifications |
 | 🚀 | **One-Click Launch** — Launcher script handles backend venv and frontend compilation |
@@ -107,11 +108,14 @@ StickyBoard/
 
 | Method | Endpoint | Description | Auth Required |
 |:---:|---|---|:---:|
-| `POST` | `/api/otp/send` | Request a 6-digit registration OTP via WhatsApp | ❌ |
-| `POST` | `/api/register` | Create a new user account (requires valid OTP) | ❌ |
+| `POST` | `/api/otp/send` | Request a 6-digit OTP via WhatsApp (`phone`) or `email` | ❌ |
+| `POST` | `/api/otp/verify` | Verify an OTP for a given channel (`phone` or `email`) | ❌ |
+| `POST` | `/api/register` | Create a new account (requires verified contact info) | ❌ |
 | `POST` | `/api/login` | Sign in with username/email and password | ❌ |
 | `POST` | `/api/logout` | Sign out | ✅ |
-| `GET` | `/api/me` | Retrieve active user authentication status | ❌ |
+| `GET` | `/api/me` | Retrieve active user authentication status and settings | ❌ |
+| `GET` | `/api/reminder-settings` | Get email, phone, verification statuses, and reminder method | ✅ |
+| `POST` | `/api/reminder-settings/toggle` | Toggle the active reminder channel (`whatsapp`, `email`, or `both`) | ✅ |
 | `GET` | `/api/notes` | Get all notes for the authenticated user | ✅ |
 | `POST` | `/api/notes` | Save/sync all notes to the database | ✅ |
 | `DELETE` | `/api/account` | Delete the authenticated user, notes, and session | ✅ |

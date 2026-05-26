@@ -1,6 +1,8 @@
 /* ========== LOGIN PAGE — CSS ========== */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -30,7 +32,8 @@
   --bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-html, body {
+html,
+body {
   height: 100%;
   font-family: var(--font);
   background: var(--bg-deep);
@@ -55,45 +58,79 @@ html, body {
 }
 
 .orb-1 {
-  width: 600px; height: 600px;
+  width: 600px;
+  height: 600px;
   background: radial-gradient(circle, #7c3aed 0%, transparent 70%);
-  top: -15%; left: -10%;
+  top: -15%;
+  left: -10%;
   animation: orbFloat1 18s ease-in-out infinite alternate;
 }
+
 .orb-2 {
-  width: 500px; height: 500px;
+  width: 500px;
+  height: 500px;
   background: radial-gradient(circle, #f472b6 0%, transparent 70%);
-  bottom: -10%; right: -5%;
+  bottom: -10%;
+  right: -5%;
   animation: orbFloat2 22s ease-in-out infinite alternate;
 }
+
 .orb-3 {
-  width: 350px; height: 350px;
+  width: 350px;
+  height: 350px;
   background: radial-gradient(circle, #34d399 0%, transparent 70%);
-  top: 60%; left: 30%;
+  top: 60%;
+  left: 30%;
   animation: orbFloat3 15s ease-in-out infinite alternate;
 }
+
 .orb-4 {
-  width: 250px; height: 250px;
+  width: 250px;
+  height: 250px;
   background: radial-gradient(circle, #fbbf24 0%, transparent 70%);
-  top: 10%; right: 25%;
+  top: 10%;
+  right: 25%;
   animation: orbFloat4 20s ease-in-out infinite alternate;
 }
 
 @keyframes orbFloat1 {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(80px, 60px) scale(1.15); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate(80px, 60px) scale(1.15);
+  }
 }
+
 @keyframes orbFloat2 {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-60px, -80px) scale(1.1); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate(-60px, -80px) scale(1.1);
+  }
 }
+
 @keyframes orbFloat3 {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(50px, -40px) scale(1.2); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate(50px, -40px) scale(1.2);
+  }
 }
+
 @keyframes orbFloat4 {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-40px, 50px) scale(0.9); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate(-40px, 50px) scale(0.9);
+  }
 }
 
 /* ========== AUTH CONTAINER ========== */
@@ -199,7 +236,7 @@ html, body {
   border-radius: 6px;
   font-size: 1rem;
   line-height: 1.3;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
   opacity: 0.12;
   transform: rotate(var(--rot));
 }
@@ -208,7 +245,8 @@ html, body {
   --rot: -6deg;
   background: linear-gradient(145deg, #fef3c7, #fde68a);
   color: #92400e;
-  top: 12%; right: 8%;
+  top: 12%;
+  right: 8%;
   animation: floatNote 8s ease-in-out infinite;
 }
 
@@ -216,7 +254,8 @@ html, body {
   --rot: 4deg;
   background: linear-gradient(145deg, #dbeafe, #93c5fd);
   color: #1e40af;
-  bottom: 22%; right: 15%;
+  bottom: 22%;
+  right: 15%;
   animation: floatNote 10s ease-in-out infinite 2s;
 }
 
@@ -224,13 +263,21 @@ html, body {
   --rot: -3deg;
   background: linear-gradient(145deg, #d1fae5, #6ee7b7);
   color: #065f46;
-  bottom: 10%; left: 10%;
+  bottom: 10%;
+  left: 10%;
   animation: floatNote 7s ease-in-out infinite 1s;
 }
 
 @keyframes floatNote {
-  0%, 100% { transform: rotate(var(--rot)) translateY(0); }
-  50% { transform: rotate(var(--rot)) translateY(-14px); }
+
+  0%,
+  100% {
+    transform: rotate(var(--rot)) translateY(0);
+  }
+
+  50% {
+    transform: rotate(var(--rot)) translateY(-14px);
+  }
 }
 
 /* ========== RIGHT — FORMS PANEL ========== */
@@ -457,7 +504,7 @@ html, body {
   transform: translate(-50%, -50%);
   width: 22px;
   height: 22px;
-  border: 3px solid rgba(255,255,255,0.3);
+  border: 3px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
   opacity: 0;
@@ -466,7 +513,9 @@ html, body {
 }
 
 @keyframes spin {
-  to { transform: translate(-50%, -50%) rotate(360deg); }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 /* ========== FORM FOOTER ========== */
@@ -496,13 +545,27 @@ html, body {
 
 /* ========== ANIMATIONS ========== */
 @keyframes fadeInUp {
-  0% { opacity: 0; transform: translateY(20px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideIn {
-  0% { opacity: 0; transform: translateY(30px) scale(0.97); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.97);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ========== SUCCESS STATE ========== */
@@ -530,8 +593,13 @@ html, body {
 }
 
 @keyframes scaleIn {
-  0% { transform: scale(0); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(0);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* ========== RESPONSIVE ========== */
@@ -598,24 +666,37 @@ html, body {
   --border: rgba(0, 0, 0, 0.1);
 }
 
-[data-theme="light"] .icon-sun { display: block !important; }
-[data-theme="light"] .icon-moon { display: none !important; }
-[data-theme="dark"] .icon-sun { display: none !important; }
-[data-theme="dark"] .icon-moon { display: block !important; }
+[data-theme="light"] .icon-sun {
+  display: block !important;
+}
+
+[data-theme="light"] .icon-moon {
+  display: none !important;
+}
+
+[data-theme="dark"] .icon-sun {
+  display: none !important;
+}
+
+[data-theme="dark"] .icon-moon {
+  display: block !important;
+}
 
 [data-theme="light"] #btn-toggle-theme {
-  background: rgba(0,0,0,0.05) !important;
-  border-color: rgba(0,0,0,0.1) !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
   color: #1a1a2e !important;
 }
 
 [data-theme="light"] .brand-tagline {
   color: #1a1a2e;
 }
+
 [data-theme="light"] .feature-item {
   color: #555570;
   background: rgba(0, 0, 0, 0.03);
 }
+
 [data-theme="light"] .feature-item:hover {
   background: rgba(0, 0, 0, 0.06);
   color: #1a1a2e;

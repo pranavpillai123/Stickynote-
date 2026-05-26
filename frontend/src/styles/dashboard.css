@@ -884,7 +884,10 @@ body::before {
   pointer-events: none;
 }
 
-/* ========== USER BADGE & LOGOUT ========== */
+.user-profile-container {
+  position: relative;
+}
+
 .user-badge {
   display: flex;
   align-items: center;
@@ -897,10 +900,172 @@ body::before {
   font-weight: 600;
   color: var(--text-secondary);
   user-select: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.user-badge:hover {
+  background: var(--bg-primary);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
 }
 
 .user-badge svg {
   opacity: 0.6;
+  transition: transform 0.2s ease;
+}
+
+.user-badge:hover svg {
+  opacity: 0.9;
+}
+
+/* Dropdown Menu */
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  min-width: 170px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: dropdownFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.dropdown-item:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.dropdown-item .dropdown-icon {
+  opacity: 0.7;
+  transition: color var(--transition-fast);
+}
+
+.dropdown-item:hover .dropdown-icon {
+  opacity: 1;
+  color: var(--accent-primary);
+}
+
+/* ========== SETTINGS MODAL ========== */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.settings-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+}
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.settings-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.settings-username-value {
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  font-size: 0.9rem;
+}
+
+.settings-danger-section {
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.02);
+}
+
+.settings-danger-title {
+  color: #ef4444;
+}
+
+.settings-danger-label {
+  color: #ef4444;
+}
+
+.settings-delete-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .danger-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .settings-delete-btn {
+    width: 100%;
+  }
 }
 
 .btn-logout:hover {

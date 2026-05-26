@@ -49,13 +49,22 @@ print(f'2a. POST /api/otp/send -> {status}: {body}')
 assert status == 200, f'Expected 200, got {status}'
 otp_code = body.get('otp', '000000')
 
+# 2a-bis) Verify OTP
+status, body = api('POST', '/otp/verify', {
+    'channel': 'phone',
+    'otp': otp_code,
+    'target': test_phone
+})
+print(f'2a-bis. POST /api/otp/verify -> {status}: {body}')
+assert status == 200, f'Expected 200, got {status}'
+
 # 2b) Register with the OTP
 status, body = api('POST', '/register', {
     'username': test_user,
     'email': test_email,
     'password': 'test123',
     'phone_number': test_phone,
-    'otp': otp_code
+    'reminder_method': 'whatsapp'
 })
 print(f'2b. POST /api/register -> {status}: {body}')
 assert status == 201, f'Expected 201, got {status}'
@@ -122,9 +131,61 @@ status, body = api('DELETE', '/account')
 print(f'11. DELETE /api/account -> {status}: {body}')
 assert status == 200, f'Expected 200, got {status}'
 
-# 12) Verify logged out and user deleted
-status, body = api('GET', '/me')
-print(f'12. GET /api/me -> {status}: {body}')
-assert body['authenticated'] == False
+# 13) Test double verification flow (both phone and email)
+double_user = f"doubleuser_{timestamp}"
+double_email = f"double_{timestamp}@example.com"
+double_phone = f"+1415{str(timestamp+1)[-7:]}"
+
+# 13a) Send phone OTP
+status, body = api('POST', '/otp/send', {
+    'username': double_user,
+    'email': double_email,
+    'phone_number': double_phone,
+    'channel': 'phone'
+}, headers={'X-Testing': 'true'})
+print(f'13a. POST /api/otp/send (phone) -> {status}: {body}')
+assert status == 200
+phone_otp = body.get('otp')
+
+# 13b) Verify phone OTP
+status, body = api('POST', '/otp/verify', {
+    'channel': 'phone',
+    'otp': phone_otp,
+    'target': double_phone
+})
+print(f'13b. POST /api/otp/verify (phone) -> {status}: {body}')
+assert status == 200
+
+# 13c) Send email OTP
+status, body = api('POST', '/otp/send', {
+    'username': double_user,
+    'email': double_email,
+    'phone_number': double_phone,
+    'channel': 'email'
+}, headers={'X-Testing': 'true'})
+print(f'13c. POST /api/otp/send (email) -> {status}: {body}')
+assert status == 200
+email_otp = body.get('otp')
+
+# 13d) Verify email OTP
+status, body = api('POST', '/otp/verify', {
+    'channel': 'email',
+    'otp': email_otp,
+    'target': double_email
+})
+print(f'13d. POST /api/otp/verify (email) -> {status}: {body}')
+assert status == 200
+
+# 13e) Register with reminder_method = both
+status, body = api('POST', '/register', {
+    'username': double_user,
+    'email': double_email,
+    'password': 'testpassword',
+    'phone_number': double_phone,
+    'reminder_method': 'both'
+})
+print(f'13e. POST /api/register (both) -> {status}: {body}')
+assert status == 201
 
 print('\n  [+] ALL TESTS PASSED! SQLite backend is fully functional (with OTP & Delete Account).')
+

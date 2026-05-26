@@ -9,6 +9,7 @@ import NoteCard from '../components/NoteCard';
 import NoteModal from '../components/NoteModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ColorPicker from '../components/ColorPicker';
+import SettingsModal from '../components/SettingsModal';
 import '../styles/dashboard.css';
 
 export default function Dashboard() {
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [colorPicker, setColorPicker] = useState({ visible: false, noteId: null, position: { top: 0, left: 0 }, color: null });
   const { theme, toggleTheme } = useTheme();
   const showToast = useToast();
@@ -251,6 +253,8 @@ export default function Dashboard() {
           setPendingDeleteId(null);
         } else if (deleteAccountOpen) {
           setDeleteAccountOpen(false);
+        } else if (settingsOpen) {
+          setSettingsOpen(false);
         } else if (modalOpen) {
           setModalOpen(false);
           setEditingNote(null);
@@ -260,7 +264,7 @@ export default function Dashboard() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [confirmOpen, deleteAccountOpen, modalOpen]);
+  }, [confirmOpen, deleteAccountOpen, settingsOpen, modalOpen]);
 
   // ── Filter notes ──
   const query = searchQuery.toLowerCase();
@@ -345,6 +349,7 @@ export default function Dashboard() {
         onNewNote={handleNewNote}
         onToggleSidebar={handleToggleSidebar}
         sidebarOpen={sidebarOpen}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <div className={`dashboard-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
@@ -375,16 +380,6 @@ export default function Dashboard() {
               <span className="sidebar-count">{notes.filter((n) => n.reminderAt).length}</span>
             </button>
           </nav>
-          <div className="sidebar-footer" style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-            <button
-              className="sidebar-item btn-delete-account"
-              onClick={() => setDeleteAccountOpen(true)}
-              style={{ gap: '12px' }}
-            >
-              <span className="sidebar-icon">🗑️</span>
-              <span className="sidebar-label" style={{ color: '#ef4444' }}>Delete Account</span>
-            </button>
-          </div>
         </aside>
 
         <main id="board" ref={boardRef} onDragOver={handleDragOver} onDrop={handleDrop}>
@@ -544,6 +539,13 @@ export default function Dashboard() {
         confirmText="Delete permanently"
         onConfirm={confirmDeleteAccount}
         onCancel={() => setDeleteAccountOpen(false)}
+      />
+
+      <SettingsModal
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onDeleteAccount={() => setDeleteAccountOpen(true)}
+        username={username}
       />
     </>
   );

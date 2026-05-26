@@ -13,7 +13,12 @@ export default function VerifyOtpPage() {
 
   // Retrieve registration state
   const registrationData = location.state || {};
-  const { username, email, password, phone_number } = registrationData;
+  const { username, email, password, phone_number, reminder_method, is_double_verification } = registrationData;
+
+  // Current verification type: 'phone' or 'email'
+  const [verificationType, setVerificationType] = useState(registrationData.verification_type || 'phone');
+  // Track if we're on the second step of double verification
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
@@ -24,7 +29,12 @@ export default function VerifyOtpPage() {
 
   // Redirect to login if registration state is missing
   useEffect(() => {
-    if (!username || !email || !phone_number || !password) {
+    if (!username || !password) {
+      navigate('/login');
+      return;
+    }
+    // Must have at least one contact method
+    if (!email && !phone_number) {
       navigate('/login');
     }
   }, [username, email, phone_number, password, navigate]);
@@ -38,12 +48,12 @@ export default function VerifyOtpPage() {
     return () => clearInterval(interval);
   }, [cooldown]);
 
-  // Focus the first input on load
+  // Focus the first input on load or when verification type changes
   useEffect(() => {
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
-  }, []);
+  }, [verificationType]);
 
   const handleOtpChange = (index, value) => {
     // Only allow numbers
@@ -94,7 +104,34 @@ export default function VerifyOtpPage() {
 
     setLoading(true);
     try {
-      await api.register(username, email, password, phone_number, fullOtp);
+      // Step 1: Verify the OTP for the current channel
+      const target = verificationType === 'phone' ? phone_number : email;
+      await api.verifyOTP(fullOtp, verificationType, target);
+
+      // Step 2: Check if we need to do a second verification (double verification for "both")
+      if (is_double_verification && verificationType === 'phone' && !phoneVerified) {
+        // Phone verified, now switch to email
+        setPhoneVerified(true);
+        setVerificationType('email');
+        setOtp(['', '', '', '', '', '']);
+        setCooldown(60);
+        setError('');
+        showToast('✅', 'Phone number verified! Now verify your email.');
+
+        // Send the email OTP
+        try {
+          const sendData = await api.sendOTP(username, email, phone_number, 'email');
+          if (sendData.simulated) {
+            showToast('🔑', `Simulated Email OTP: ${sendData.otp}`);
+          }
+        } catch (sendErr) {
+          setError(sendErr.message);
+        }
+        return;
+      }
+
+      // Final step: Register the account
+      await api.register(username, email, password, phone_number, reminder_method);
       showToast('✨', 'Account created successfully!');
       navigate('/app');
     } catch (err) {
@@ -109,8 +146,12 @@ export default function VerifyOtpPage() {
     setResending(true);
     setError('');
     try {
-      await api.sendOTP(username, email, phone_number);
-      showToast('📲', 'OTP resent successfully!');
+      const data = await api.sendOTP(username, email, phone_number, verificationType);
+      if (data.simulated) {
+        showToast('🔑', `Simulated OTP: ${data.otp}`);
+      } else {
+        showToast(verificationType === 'phone' ? '📲' : '📧', 'OTP resent successfully!');
+      }
       setCooldown(60);
       setOtp(['', '', '', '', '', '']);
       if (inputRefs.current[0]) inputRefs.current[0].focus();
@@ -120,6 +161,18 @@ export default function VerifyOtpPage() {
       setResending(false);
     }
   };
+
+  // Dynamic content based on verification type
+  const isPhoneStep = verificationType === 'phone';
+  const headerTitle = isPhoneStep ? 'Verify Phone Number' : 'Verify Email Address';
+  const headerDesc = isPhoneStep
+    ? 'We sent a verification code to WhatsApp:'
+    : 'We sent a verification code to your email:';
+  const targetDisplay = isPhoneStep ? phone_number : email;
+  const headerIcon = isPhoneStep ? '📲' : '📧';
+  const stepIndicator = is_double_verification
+    ? (phoneVerified ? 'Step 2 of 2 — Email Verification' : 'Step 1 of 2 — Phone Verification')
+    : null;
 
   return (
     <>
@@ -142,6 +195,17 @@ export default function VerifyOtpPage() {
           box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25) !important;
           transform: translateY(-2px);
           background: var(--bg-secondary) !important;
+        }
+        .step-indicator {
+          display: inline-block;
+          background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(244, 114, 182, 0.15));
+          color: var(--accent-primary);
+          font-size: 0.8rem;
+          font-weight: 600;
+          padding: 6px 14px;
+          border-radius: 20px;
+          margin-bottom: 12px;
+          letter-spacing: 0.3px;
         }
       `}</style>
 
@@ -184,7 +248,7 @@ export default function VerifyOtpPage() {
         </button>
       </div>
 
-      <main className="auth-container" id="auth-container" style={{ justifyContent: 'center' }}>
+      <main className="auth-container" id="auth-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <section className="auth-forms" style={{ width: '100%', maxWidth: '480px', flex: 'unset', padding: '40px' }}>
           <div className="form-wrapper" style={{ animation: 'fadeInUp 0.6s ease' }}>
             <div className="form-header" style={{ textAlign: 'center' }}>
@@ -202,10 +266,13 @@ export default function VerifyOtpPage() {
                   </defs>
                 </svg>
               </div>
-              <h2>Verify OTP</h2>
+              {stepIndicator && (
+                <div className="step-indicator">{stepIndicator}</div>
+              )}
+              <h2>{headerTitle}</h2>
               <p style={{ marginTop: '8px', color: 'var(--text-secondary)' }}>
-                We sent a verification code to WhatsApp:<br />
-                <strong style={{ color: 'var(--text-primary)', display: 'inline-block', marginTop: '4px' }}>{phone_number}</strong>
+                {headerDesc}<br />
+                <strong style={{ color: 'var(--text-primary)', display: 'inline-block', marginTop: '4px' }}>{targetDisplay}</strong>
               </p>
             </div>
 
@@ -236,7 +303,11 @@ export default function VerifyOtpPage() {
               )}
 
               <button type="submit" className={`btn-auth${loading ? ' loading' : ''}`} style={{ marginTop: '30px' }} disabled={loading}>
-                <span className="btn-text">Verify & Register</span>
+                <span className="btn-text">
+                  {is_double_verification && !phoneVerified
+                    ? 'Verify & Continue'
+                    : 'Verify & Register'}
+                </span>
                 <span className="btn-loader" aria-hidden="true"></span>
               </button>
             </form>
