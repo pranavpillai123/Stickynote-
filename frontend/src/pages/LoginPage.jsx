@@ -240,7 +240,7 @@ export default function LoginPage() {
             <div className="brand-features">
               <div className="feature-item"><span className="feature-icon">✨</span><span>Beautiful drag-and-drop notes</span></div>
               <div className="feature-item"><span className="feature-icon">🎨</span><span>8 vibrant color themes</span></div>
-              <div className="feature-item"><span className="feature-icon">🌙</span><span>Dark &amp; light modes</span></div>
+              <div className="feature-item"><span className="feature-icon">🔔</span><span>WhatsApp &amp; Email reminders</span></div>
               <div className="feature-item"><span className="feature-icon">🔍</span><span>Instant search</span></div>
             </div>
           </div>

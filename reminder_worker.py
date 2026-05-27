@@ -8,7 +8,8 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(errors='replace')
 
 import time
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -29,7 +30,7 @@ SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_FROM = os.getenv("SMTP_FROM") or SMTP_USER
 
-DATABASE = os.path.join(os.path.dirname(__file__), 'stickyboard.db')
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_twilio_client():
     if ACCOUNT_SID and AUTH_TOKEN:
@@ -90,38 +91,87 @@ def send_email(to_email, subject, html_body):
         return False
 
 
-def _build_reminder_email_html(title, content, local_time_str, desc, is_expired=False):
+def _build_reminder_email_html(title, content, color, font, local_time_str, desc, is_expired=False):
     """Build a styled HTML email for a note reminder."""
-    status_color = "#ef4444" if is_expired else "#7c3aed"
-    status_label = "Expired" if is_expired else desc
+    status_color = "#ef4444" if is_expired else "#4f46e5"
+    status_bg = "#fef2f2" if is_expired else "#eeebff"
+    status_label = "Expired" if is_expired else f"Due {desc}"
     header_text = "Reminder Expired!" if is_expired else "Note Reminder"
     header_icon = "🔔" if is_expired else "⏰"
     
     safe_content = content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;') if content else "<em>(no content)</em>"
     safe_title = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     
+    color_map = {
+        'yellow': {'bg': 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', 'border': '#facc15', 'text': '#713f12', 'tape': 'rgba(250, 204, 21, 0.3)'},
+        'pink':   {'bg': 'linear-gradient(135deg, #fce7f3 0%, #f9a8d4 100%)', 'border': '#ec4899', 'text': '#701a75', 'tape': 'rgba(236, 72, 153, 0.25)'},
+        'blue':   {'bg': 'linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%)', 'border': '#3b82f6', 'text': '#0c4a6e', 'tape': 'rgba(59, 130, 246, 0.25)'},
+        'green':  {'bg': 'linear-gradient(135deg, #d1fae5 0%, #6ee7b7 100%)', 'border': '#10b981', 'text': '#14532d', 'tape': 'rgba(16, 185, 129, 0.25)'},
+        'purple': {'bg': 'linear-gradient(135deg, #ede9fe 0%, #c4b5fd 100%)', 'border': '#8b5cf6', 'text': '#581c87', 'tape': 'rgba(139, 92, 246, 0.25)'},
+        'orange': {'bg': 'linear-gradient(135deg, #ffedd5 0%, #fdba74 100%)', 'border': '#f97316', 'text': '#7c2d12', 'tape': 'rgba(249, 115, 22, 0.25)'},
+        'teal':   {'bg': 'linear-gradient(135deg, #ccfbf1 0%, #5eead4 100%)', 'border': '#14b8a6', 'text': '#042f2e', 'tape': 'rgba(20, 184, 166, 0.25)'},
+        'rose':   {'bg': 'linear-gradient(135deg, #ffe4e6 0%, #fda4af 100%)', 'border': '#f43f5e', 'text': '#4c0519', 'tape': 'rgba(244, 63, 94, 0.25)'},
+    }
+    
+    c_style = color_map.get(color.lower() if color else 'yellow', color_map['yellow'])
+    font_family = f"'{font}', 'Caveat', 'Segoe UI', cursive" if font else "'Caveat', 'Segoe UI', cursive"
+    font_weight = "700" if font in ("Caveat", "Patrick Hand") else "600"
+    
     return f'''
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <div style="width: 48px; height: 48px; border-radius: 10px; background: linear-gradient(135deg, #7c3aed, #f472b6); margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-          <span style="font-size: 24px;">{header_icon}</span>
-        </div>
-        <h3 style="color: {status_color}; margin-top: 8px; margin-bottom: 0; font-weight: 700;">StickyBoard {header_text}</h3>
-      </div>
-      <div style="background: linear-gradient(135deg, #7c3aed 0%, #f472b6 100%); padding: 2px; border-radius: 10px; margin-bottom: 20px;">
-        <div style="background: #ffffff; padding: 18px; border-radius: 8px;">
-          <h4 style="color: #1e293b; margin: 0 0 10px 0; font-size: 18px; font-weight: 700;">{safe_title}</h4>
-          <p style="color: #475569; font-size: 14px; margin: 0 0 16px 0; font-style: italic;">
-            Scheduled Time: {local_time_str} &mdash; <span style="color: {status_color}; font-weight: 600;">{status_label}</span>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Patrick+Hand&family=Inter:wght@600&family=Poppins:wght@600&family=Roboto:wght@700&family=Lora:ital,wght@0,600;1,600&family=Nunito:wght@700&family=Outfit:wght@400;500;600;700&display=swap');
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Outfit', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;">
+  <div style="background-color: #f8fafc; padding: 48px 20px; min-height: 100%;">
+    <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9;">
+      <!-- Top Accent Bar -->
+      <div style="height: 6px; background: {"linear-gradient(90deg, #f43f5e 0%, #e11d48 100%)" if is_expired else "linear-gradient(90deg, #6366f1 0%, #4f46e5 100%)"};"></div>
+      
+      <div style="padding: 40px 32px;">
+        <!-- Header Info -->
+        <div style="text-align: center; margin-bottom: 32px;">
+          <div style="width: 56px; height: 56px; border-radius: 14px; background-color: {status_bg}; display: inline-block; line-height: 56px; font-size: 28px; text-align: center; color: {status_color};">
+            {header_icon}
+          </div>
+          <h2 style="color: #1e293b; margin-top: 16px; margin-bottom: 4px; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">{header_text}</h2>
+          <p style="color: #64748b; font-size: 13px; margin: 0; font-weight: 500;">
+            Scheduled: {local_time_str} &bull; <span style="color: {status_color}; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">{status_label}</span>
           </p>
-          <div style="background-color: #fefcbf; border-left: 4px solid #facc15; padding: 12px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; font-size: 15px; color: #451a03; min-height: 40px; white-space: pre-wrap;">{safe_content}</div>
         </div>
-      </div>
-      <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-      <div style="text-align: center; font-size: 12px; color: #94a3b8;">
-        <p>Configure reminder channels anytime in your StickyBoard account settings.</p>
+
+        <!-- Sticky Note Container -->
+        <div style="position: relative; margin-bottom: 32px;">
+          <!-- Tape overlay graphic -->
+          <div style="text-align: center; width: 100%; margin-bottom: -9px; position: relative; z-index: 2;">
+            <div style="width: 80px; height: 18px; background-color: {c_style['tape']}; border: 1px dashed rgba(0, 0, 0, 0.06); display: inline-block;"></div>
+          </div>
+          
+          <!-- Sticky Note Card -->
+          <div style="background: {c_style['bg']}; border: 1px solid {c_style['border']}; border-radius: 12px; padding: 24px; color: {c_style['text']}; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06); min-height: 120px;">
+            <h3 style="font-family: 'Outfit', 'Segoe UI', sans-serif; font-size: 16px; font-weight: 700; margin: 0 0 12px 0; border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+              {safe_title}
+            </h3>
+            <div style="font-family: {font_family}; font-size: 18px; font-weight: {font_weight}; line-height: 1.5; white-space: pre-wrap; word-break: break-word;">{safe_content}</div>
+          </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+        
+        <!-- Footer -->
+        <div style="text-align: center; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+          <p style="margin: 0 0 4px 0;">Configure reminder channels anytime in your StickyBoard settings.</p>
+          <p style="margin: 0;">&copy; 2026 StickyBoard. All rights reserved.</p>
+        </div>
       </div>
     </div>
+  </div>
+</body>
+</html>
     '''
 
 
@@ -152,22 +202,25 @@ def parse_datetime(val):
     return None
 
 def check_and_send_reminders():
-    if not os.path.exists(DATABASE):
+    if not DATABASE_URL:
         return
         
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    except Exception as e:
+        print(f"[Worker] Failed to connect to database: {e}")
+        return
 
     try:
         # Check if the tables exist
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'")
-        if not cursor.fetchone():
+        cursor.execute("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'notes')")
+        if not cursor.fetchone()['exists']:
             return
 
         # Fetch all notes that have reminders and their users' contact info + reminder preferences
         query = """
-            SELECT n.id, n.username, n.title, n.content, n.created_at, n.updated_at, n.reminder_at, 
+            SELECT n.id, n.username, n.title, n.content, n.color, n.font, n.created_at, n.updated_at, n.reminder_at, 
                    u.phone_number, u.email, u.reminder_method, u.is_phone_verified, u.is_email_verified
             FROM notes n
             JOIN users u ON n.username = u.username
@@ -182,6 +235,8 @@ def check_and_send_reminders():
             note_id = note['id']
             title = note['title'] or "Untitled"
             content = note['content'] or ""
+            color = note['color'] or "yellow"
+            font = note['font'] or "Caveat"
             phone = note['phone_number']
             email_addr = note['email']
             reminder_method = note['reminder_method'] or 'whatsapp'
@@ -221,7 +276,7 @@ def check_and_send_reminders():
             
             # Fetch already sent notifications for this note for the current reminder_at time
             cursor.execute(
-                "SELECT threshold FROM reminder_notifications WHERE note_id = ? AND reminder_at = ?",
+                "SELECT threshold FROM reminder_notifications WHERE note_id = %s AND reminder_at = %s",
                 (note_id, note['reminder_at'])
             )
             sent_thresholds = {row['threshold'] for row in cursor.fetchall()}
@@ -264,11 +319,11 @@ def check_and_send_reminders():
                 
                 try:
                     cursor.execute(
-                        "INSERT INTO reminder_notifications (note_id, threshold, reminder_at, sent_at) VALUES (?, ?, ?, ?)",
+                        "INSERT INTO reminder_notifications (note_id, threshold, reminder_at, sent_at) VALUES (%s, %s, %s, %s)",
                         (note_id, threshold, note['reminder_at'], now.isoformat())
                     )
                     conn.commit()
-                except sqlite3.IntegrityError:
+                except psycopg2.IntegrityError:
                     continue
 
                 is_expired = threshold == 'expired'
@@ -293,7 +348,7 @@ def check_and_send_reminders():
                     else:
                         email_subject = f"⏰ StickyBoard Reminder: {title}"
                     
-                    email_html = _build_reminder_email_html(title, content, local_time_str, desc, is_expired)
+                    email_html = _build_reminder_email_html(title, content, color, font, local_time_str, desc, is_expired)
                     email_success = send_email(email_addr, email_subject, email_html)
                     if email_success:
                         any_success = True
@@ -301,7 +356,7 @@ def check_and_send_reminders():
                 # If sending failed on all channels and twilio/smtp variables are present, remove lock so it can be retried
                 if not any_success and (ACCOUNT_SID or SMTP_HOST):
                     cursor.execute(
-                        "DELETE FROM reminder_notifications WHERE note_id = ? AND threshold = ? AND reminder_at = ?",
+                        "DELETE FROM reminder_notifications WHERE note_id = %s AND threshold = %s AND reminder_at = %s",
                         (note_id, threshold, note['reminder_at'])
                     )
                     conn.commit()

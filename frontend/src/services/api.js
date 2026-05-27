@@ -121,4 +121,15 @@ export const api = {
     if (!res.ok) throw new Error(data.error || 'Failed to update reminder settings');
     return data;
   },
+
+  async updateAboutSetting(about) {
+    const res = await apiFetch('/reminder-settings/about', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ about }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update biography');
+    return data;
+  },
 };

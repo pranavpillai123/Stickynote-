@@ -1129,13 +1129,59 @@ body::before {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 500px) {
+  #app-header {
+    flex-wrap: wrap;
+    height: auto !important;
+    padding: 12px 16px !important;
+    gap: 10px 0;
+  }
+
+  .header-left {
+    order: 1;
+    flex: 1;
+  }
+
+  .header-right {
+    order: 2;
+    flex-shrink: 0;
+  }
+
   .header-center {
-    display: none;
+    order: 3;
+    width: 100%;
+    display: flex !important;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
+  .search-bar {
+    width: 100% !important;
+    max-width: 100%;
   }
 
   .board-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Optimize modal space on smaller phones */
+  .modal {
+    width: 95% !important;
+    max-height: calc(100vh - 40px) !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .modal-header {
+    padding: 16px 20px !important;
+  }
+
+  .modal-body {
+    padding: 16px 20px !important;
+    gap: 14px !important;
+  }
+
+  .modal-footer {
+    padding: 12px 20px !important;
   }
 }
 
@@ -1162,10 +1208,8 @@ body::before {
 }
 
 /* ========== REACT SEARCH FILTER WRAPPER ========== */
-.filtered-out-wrapper .note-card {
-  opacity: 0.15;
-  transform: scale(0.95);
-  pointer-events: none;
+.filtered-out-wrapper {
+  display: none;
 }
 
 /* ========== CUSTOM FANCY DATE-TIME SELECTOR ========== */

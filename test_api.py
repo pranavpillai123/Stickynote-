@@ -187,5 +187,44 @@ status, body = api('POST', '/register', {
 print(f'13e. POST /api/register (both) -> {status}: {body}')
 assert status == 201
 
-print('\n  [+] ALL TESTS PASSED! SQLite backend is fully functional (with OTP & Delete Account).')
+# 13f) Check reminder settings gets 'about' field with default biography
+status, body = api('GET', '/reminder-settings')
+print(f'13f. GET /api/reminder-settings -> {status}: {body}')
+assert status == 200
+assert 'about' in body
+assert "Pranav" in body['about']
+assert "Antigravity" in body['about']
+
+# 13g) Update 'about' field
+new_about = "Hello, this is a test profile biography."
+status, body = api('POST', '/reminder-settings/about', {'about': new_about})
+print(f'13g. POST /api/reminder-settings/about -> {status}: {body}')
+assert status == 200
+assert body['about'] == new_about
+
+# 13h) Check reminder settings again to verify persistence
+status, body = api('GET', '/reminder-settings')
+print(f'13h. GET /api/reminder-settings (after update) -> {status}: {body}')
+assert status == 200
+assert body['about'] == new_about
+
+# 13i) Check /me endpoint returns the updated bio
+status, body = api('GET', '/me')
+print(f'13i. GET /api/me (after update) -> {status}: {body}')
+assert status == 200
+assert body['about'] == new_about
+
+# 13j) Try to save an excessively long biography
+long_about = "a" * 1001
+status, body = api('POST', '/reminder-settings/about', {'about': long_about})
+print(f'13j. POST /api/reminder-settings/about (long biography) -> {status}: {body}')
+assert status == 400
+assert 'too long' in body['error'].lower()
+
+# Clean up double_user
+status, body = api('DELETE', '/account')
+print(f'14. DELETE /api/account (cleanup double_user) -> {status}: {body}')
+assert status == 200
+
+print('\n  [+] ALL TESTS PASSED! Neon PostgreSQL backend & biography features are fully functional.')
 

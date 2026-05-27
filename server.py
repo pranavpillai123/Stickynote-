@@ -18,7 +18,10 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 import hashlib
 import secrets
-import sqlite3
+import psycopg2
+import psycopg2.extras
+from dotenv import load_dotenv
+load_dotenv()
 import threading
 import random
 import time
@@ -49,18 +52,46 @@ CORS(app, supports_credentials=True, origins=[
     "http://127.0.0.1:3000",
 ])
 
-# ── SQLite Configuration ────────────────────────────────────────────────────
+# ── PostgreSQL Configuration ──────────────────────────────────────────────────
 
-DATABASE = os.path.join(os.path.dirname(__file__), 'stickyboard.db')
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    print("\n[!] WARNING: DATABASE_URL is not set in the environment or .env file.")
+    print("Falling back to local stickyboard.db configuration if running in offline mode.\n")
+
+
+class PostgresConnectionWrapper:
+    def __init__(self, conn):
+        self._conn = conn
+
+    def execute(self, query, params=None):
+        # Convert SQLite placeholder '?' to Postgres '%s'
+        query = query.replace('?', '%s')
+        cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(query, params)
+        return cur
+
+    def executemany(self, query, params_list=None):
+        query = query.replace('?', '%s')
+        cur = self._conn.cursor()
+        cur.executemany(query, params_list)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
 
 
 def get_db():
     """Get a database connection for the current request."""
     if 'db' not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA journal_mode=WAL")
-        g.db.execute("PRAGMA foreign_keys=ON")
+        raw_conn = psycopg2.connect(DATABASE_URL)
+        g.db = PostgresConnectionWrapper(raw_conn)
     return g.db
 
 
@@ -74,75 +105,94 @@ def close_db(exception):
 
 def init_db():
     """Create tables if they don't exist, wiping and recreating them if schema updates are needed."""
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
-
-    # Check if database migration is needed (presence of new columns)
+    raw_conn = psycopg2.connect(DATABASE_URL)
+    conn = PostgresConnectionWrapper(raw_conn)
+    
+    # Check if database migration is needed (presence of new columns in users table)
     try:
-        cursor.execute("PRAGMA table_info(users)")
-        columns = [row[1] for row in cursor.fetchall()]
-        if columns and ('is_email_verified' not in columns or 'reminder_method' not in columns):
-            print("  [!] Outdated database schema (missing email verification columns). Wiping database...")
-            cursor.execute("DROP TABLE IF EXISTS reminder_notifications")
-            cursor.execute("DROP TABLE IF EXISTS notes")
-            cursor.execute("DROP TABLE IF EXISTS users")
-            conn.commit()
+        cursor = conn.execute("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users')")
+        table_exists = cursor.fetchone()['exists']
+        if table_exists:
+            cursor = conn.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")
+            columns = [row['column_name'] for row in cursor.fetchall()]
+            if columns and ('is_email_verified' not in columns or 'reminder_method' not in columns):
+                print("  [!] Outdated database schema (missing email verification columns). Wiping database...")
+                conn.execute("DROP TABLE IF EXISTS reminder_notifications")
+                conn.execute("DROP TABLE IF EXISTS notes")
+                conn.execute("DROP TABLE IF EXISTS users")
+                conn.commit()
     except Exception as e:
         print(f"  [!] Error checking users schema: {e}")
 
     # Check if reminder_notifications table needs migration (presence of reminder_at column)
     try:
-        cursor.execute("PRAGMA table_info(reminder_notifications)")
-        columns = [row[1] for row in cursor.fetchall()]
-        if columns and 'reminder_at' not in columns:
-            print("  [!] Outdated reminder_notifications schema (missing reminder_at). Migrating...")
-            cursor.execute("DROP TABLE IF EXISTS reminder_notifications")
-            conn.commit()
+        cursor = conn.execute("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'reminder_notifications')")
+        table_exists = cursor.fetchone()['exists']
+        if table_exists:
+            cursor = conn.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'reminder_notifications'")
+            columns = [row['column_name'] for row in cursor.fetchall()]
+            if columns and 'reminder_at' not in columns:
+                print("  [!] Outdated reminder_notifications schema (missing reminder_at). Migrating...")
+                conn.execute("DROP TABLE IF EXISTS reminder_notifications")
+                conn.commit()
     except Exception as e:
         print(f"  [!] Error checking reminder_notifications schema: {e}")
 
-    cursor.execute('''
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
-            email TEXT,
-            password_hash TEXT NOT NULL,
-            salt TEXT NOT NULL,
-            phone_number TEXT,
+            username VARCHAR(100) PRIMARY KEY,
+            email VARCHAR(255),
+            password_hash VARCHAR(255) NOT NULL,
+            salt VARCHAR(100) NOT NULL,
+            phone_number VARCHAR(100),
             is_email_verified INTEGER DEFAULT 0,
             is_phone_verified INTEGER DEFAULT 0,
-            reminder_method TEXT DEFAULT 'whatsapp',
-            created_at TEXT DEFAULT (datetime('now'))
+            reminder_method VARCHAR(50) DEFAULT 'whatsapp',
+            created_at VARCHAR(100) DEFAULT to_char(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')
         )
     ''')
 
-    cursor.execute('''
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS notes (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            title TEXT,
+            id VARCHAR(100) PRIMARY KEY,
+            username VARCHAR(100) NOT NULL,
+            title VARCHAR(255),
             content TEXT,
-            color TEXT DEFAULT 'yellow',
-            font TEXT DEFAULT 'Caveat',
-            created_at TEXT,
-            updated_at TEXT,
-            reminder_at TEXT,
+            color VARCHAR(50) DEFAULT 'yellow',
+            font VARCHAR(100) DEFAULT 'Caveat',
+            created_at VARCHAR(100),
+            updated_at VARCHAR(100),
+            reminder_at VARCHAR(100),
             FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE
         )
     ''')
 
-    cursor.execute('''
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS reminder_notifications (
-            note_id TEXT,
-            threshold TEXT,
-            reminder_at TEXT,
-            sent_at TEXT,
+            note_id VARCHAR(100),
+            threshold VARCHAR(100),
+            reminder_at VARCHAR(100),
+            sent_at VARCHAR(100),
             PRIMARY KEY (note_id, threshold, reminder_at)
         )
     ''')
 
+    # Add about column if not exists
+    try:
+        conn.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS about VARCHAR(1000)')
+        default_bio = (
+            "I am Pranav. I am a student who is currently learning coding and curious about things. "
+            "I made this project entirely in Antigravity as this is my first Antigravity project. "
+            "If you have any queries, email me at boardsticky1@gmail.com."
+        )
+        conn.execute("ALTER TABLE users ALTER COLUMN about SET DEFAULT %s", (default_bio,))
+        conn.execute("UPDATE users SET about = %s WHERE about IS NULL OR about = ''", (default_bio,))
+    except Exception as e:
+        print(f"  [!] Error adding/updating 'about' column: {e}")
+
     conn.commit()
     conn.close()
-    print(f"  [+] Database initialized: {DATABASE}")
+    print("  [+] Database initialized successfully.")
 
 
 # ── Initialize ──
@@ -263,26 +313,61 @@ def send_otp():
 
             email_subject = '🔐 StickyBoard Verification Code'
             email_body = f"""\
-<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-  <div style="text-align: center; margin-bottom: 24px;">
-    <h2 style="color: #7c3aed; margin-top: 12px; margin-bottom: 4px; font-weight: 700;">StickyBoard Verification</h2>
-    <p style="color: #64748b; font-size: 14px; margin: 0;">Secure Your Account</p>
-  </div>
-  <div style="color: #334155; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
-    <p>Hello!</p>
-    <p>You are verifying your email address on <strong>StickyBoard</strong>. Use the One-Time Password (OTP) below to complete this action:</p>
-    <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0;">
-      <span style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #7c3aed;">{otp}</span>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Outfit', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;">
+  <div style="background-color: #f8fafc; padding: 48px 20px; min-height: 100%;">
+    <div style="max-width: 480px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9;">
+      <!-- Top Gradient Bar -->
+      <div style="height: 6px; background: linear-gradient(90deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);"></div>
+      
+      <div style="padding: 40px 32px;">
+        <!-- Logo / Icon -->
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); display: inline-block; line-height: 56px; font-size: 28px; text-align: center;">
+            🔐
+          </div>
+          <h2 style="color: #1e293b; margin-top: 16px; margin-bottom: 4px; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">StickyBoard</h2>
+          <p style="color: #64748b; font-size: 14px; margin: 0; font-weight: 500;">Verification Code</p>
+        </div>
+
+        <!-- Content -->
+        <div style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
+          <p style="margin: 0 0 12px 0; font-weight: 500;">Hello,</p>
+          <p style="margin: 0; color: #475569;">You are verifying your email address on <strong>StickyBoard</strong>. Use the One-Time Password (OTP) below to complete this action:</p>
+          
+          <!-- OTP Box -->
+          <div style="background-color: #f5f3ff; border: 1px solid #e0e7ff; border-radius: 12px; padding: 20px; text-align: center; margin: 28px 0;">
+            <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #4f46e5; font-family: 'Outfit', monospace; padding-left: 8px;">{otp}</div>
+          </div>
+
+          <!-- Warning Box -->
+          <div style="background-color: #fff1f2; border-left: 3px solid #f43f5e; border-radius: 6px; padding: 12px 16px; margin: 0;">
+            <p style="font-size: 13px; color: #e11d48; margin: 0; font-weight: 500;">
+              <strong>Important:</strong> This verification code will expire in <strong>5 minutes</strong>. For your security, please do not share this code with anyone.
+            </p>
+          </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+        
+        <!-- Footer -->
+        <div style="text-align: center; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+          <p style="margin: 0 0 4px 0;">This is an automated security message. Please do not reply directly.</p>
+          <p style="margin: 0;">&copy; 2026 StickyBoard. All rights reserved.</p>
+        </div>
+      </div>
     </div>
-    <p style="font-size: 14px; color: #ef4444; background-color: #fef2f2; padding: 10px 14px; border-radius: 6px; margin: 0;">
-      <strong>Important:</strong> This verification code will expire in <strong>5 minutes</strong>. Please do not share this code with anyone.
-    </p>
   </div>
-  <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-  <div style="text-align: center; font-size: 12px; color: #94a3b8;">
-    <p>&copy; 2026 StickyBoard. All rights reserved.</p>
-  </div>
-</div>"""
+</body>
+</html>
+"""
 
             is_test = request.headers.get('X-Testing') == 'true'
             success = False if is_test else send_email(email, email_subject, email_body)
@@ -291,9 +376,6 @@ def send_otp():
                 return jsonify({'message': 'OTP generated (simulated in logs)', 'simulated': True, 'otp': otp}), 200
 
         resp_data = {'message': 'OTP sent successfully'}
-        if app.debug:
-            resp_data['otp'] = otp
-            resp_data['simulated'] = True
         return jsonify(resp_data), 200
 
     except Exception as e:
@@ -479,7 +561,7 @@ def register():
         session['user'] = username
         return jsonify({'message': 'Account created successfully', 'username': username}), 201
 
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         return jsonify({'error': 'Username, Email, or Phone number already taken'}), 409
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -522,7 +604,7 @@ def me():
     if 'user' in session:
         db = get_db()
         user = db.execute(
-            'SELECT phone_number, email, is_email_verified, is_phone_verified, reminder_method FROM users WHERE username = ?',
+            'SELECT phone_number, email, is_email_verified, is_phone_verified, reminder_method, about FROM users WHERE username = ?',
             (session['user'],)
         ).fetchone()
         if user:
@@ -534,6 +616,7 @@ def me():
                 'is_email_verified': bool(user['is_email_verified']),
                 'is_phone_verified': bool(user['is_phone_verified']),
                 'reminder_method': user['reminder_method'] or 'whatsapp',
+                'about': user['about'] or '',
             }), 200
         return jsonify({'authenticated': True, 'username': session['user']}), 200
     return jsonify({'authenticated': False}), 200
@@ -567,7 +650,7 @@ def delete_account():
 def get_reminder_settings():
     db = get_db()
     user = db.execute(
-        'SELECT email, phone_number, is_email_verified, is_phone_verified, reminder_method FROM users WHERE username = ?',
+        'SELECT email, phone_number, is_email_verified, is_phone_verified, reminder_method, about FROM users WHERE username = ?',
         (session['user'],)
     ).fetchone()
     if not user:
@@ -579,6 +662,7 @@ def get_reminder_settings():
         'is_email_verified': bool(user['is_email_verified']),
         'is_phone_verified': bool(user['is_phone_verified']),
         'reminder_method': user['reminder_method'] or 'whatsapp',
+        'about': user['about'] or '',
     }), 200
 
 
@@ -616,6 +700,25 @@ def toggle_reminder_setting():
     db.commit()
 
     return jsonify({'message': f'Reminder method updated to {new_method}', 'reminder_method': new_method}), 200
+
+
+@app.route('/api/reminder-settings/about', methods=['POST'])
+@login_required
+def update_about_setting():
+    data = request.get_json(silent=True) or {}
+    about_text = data.get('about', '')
+
+    if len(about_text) > 1000:
+        return jsonify({'error': 'About description is too long (maximum 1000 characters)'}), 400
+
+    db = get_db()
+    db.execute(
+        'UPDATE users SET about = ? WHERE username = ?',
+        (about_text, session['user'])
+    )
+    db.commit()
+
+    return jsonify({'message': 'Profile bio updated successfully', 'about': about_text}), 200
 
 
 # ── Notes Data & Routes (SQLite) ───────────────────────────────────────────

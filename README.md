@@ -4,11 +4,12 @@
 
 ### A Beautiful, Modern Sticky Notes App
 
-[![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
-[![Vite](https://img.shields.io/badge/Vite-6.0+-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev)
+[![React](https://img.shields.io/badge/React-19+-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-8.0+-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
-[![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlite.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech)
+[![Render](https://img.shields.io/badge/Deployed_on-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com)
 
 *Capture ideas. Organize thoughts. Stay brilliant.*
 
@@ -30,14 +31,24 @@
 | ⏰ | **Multi-Channel Reminders** — Schedule reminders sent directly to your WhatsApp, Email, or both channels |
 | ⚙️ | **Reminder Settings** — Configure your reminder channels and verify new email/phone inline from the Settings modal |
 | 🖱️ | **Drag & Drop** — Sort and reorder notes on the board by dragging them |
+| 👤 | **About Me** — Independent "About Me" modal with developer bio, GitHub, and LinkedIn links |
+| 📱 | **Fully Responsive** — Mobile-optimized layout that works seamlessly on phones, tablets, and desktops |
 | 🗑️ | **Delete Account** — Permanent account removal, cascade-deleting all notes and notifications |
-| 🚀 | **One-Click Launch** — Launcher script handles backend venv and frontend compilation |
+| 🚀 | **Cloud Deployment** — Production-ready deployment on Render with Neon PostgreSQL |
+
+---
+
+## 🌐 Live Demo
+
+The app is deployed on **Render** and available at:
+
+> 🔗 [https://stickyboard.onrender.com](https://stickyboard.onrender.com)
 
 ---
 
 ## 🚀 Quick Start
 
-### One-Click Launch (Recommended)
+### One-Click Launch (Local — Recommended)
 
 ```
 Double-click  run.bat
@@ -85,7 +96,16 @@ StickyBoard/
 │   ├── src/
 │   │   ├── main.jsx        # Frontend entry point
 │   │   ├── App.jsx         # Client-side routing configuration
-│   │   ├── components/     # UI components (Header, Toast, NoteCard, ConfirmDialog)
+│   │   ├── components/     # UI components
+│   │   │   ├── Header.jsx          # App header with search, theme toggle, user menu
+│   │   │   ├── NoteCard.jsx        # Individual sticky note card
+│   │   │   ├── NoteModal.jsx       # Create/edit note modal
+│   │   │   ├── SettingsModal.jsx   # Reminder & verification settings
+│   │   │   ├── AboutModal.jsx      # About Me developer info modal
+│   │   │   ├── ColorPicker.jsx     # Note color theme selector
+│   │   │   ├── ConfirmDialog.jsx   # Confirmation dialog
+│   │   │   ├── DateTimePicker.jsx  # Reminder date/time picker
+│   │   │   └── Toast.jsx          # Toast notification
 │   │   ├── pages/          # Pages (Dashboard, LoginPage, VerifyOtpPage)
 │   │   ├── services/       # API fetch wrapper client
 │   │   └── styles/         # Global & component stylesheet CSS files
@@ -93,12 +113,14 @@ StickyBoard/
 │
 ├── ⚙️ Backend
 │   ├── server.py           # Flask server with API routes
-│   ├── reminder_worker.py  # Background worker for sending WhatsApp notifications
+│   ├── reminder_worker.py  # Background worker for sending WhatsApp & email notifications
 │   ├── requirements.txt    # Python dependencies list
-│   └── stickyboard.db      # SQLite database (auto-created on startup)
+│   └── .env                # Environment variables (database URL, API keys)
 │
-└── 🛠️ Utilities
-    ├── run.bat             # One-click launcher script
+└── 🛠️ Deployment & Utilities
+    ├── render.yaml         # Render deployment configuration
+    ├── build.sh            # Production build script for Render
+    ├── run.bat             # One-click local launcher script
     └── README.md           # This file
 ```
 
@@ -114,8 +136,9 @@ StickyBoard/
 | `POST` | `/api/login` | Sign in with username/email and password | ❌ |
 | `POST` | `/api/logout` | Sign out | ✅ |
 | `GET` | `/api/me` | Retrieve active user authentication status and settings | ❌ |
-| `GET` | `/api/reminder-settings` | Get email, phone, verification statuses, and reminder method | ✅ |
+| `GET` | `/api/reminder-settings` | Get email, phone, verification statuses, reminder method, and about text | ✅ |
 | `POST` | `/api/reminder-settings/toggle` | Toggle the active reminder channel (`whatsapp`, `email`, or `both`) | ✅ |
+| `POST` | `/api/reminder-settings/about` | Update the user's biography / about text | ✅ |
 | `GET` | `/api/notes` | Get all notes for the authenticated user | ✅ |
 | `POST` | `/api/notes` | Save/sync all notes to the database | ✅ |
 | `DELETE` | `/api/account` | Delete the authenticated user, notes, and session | ✅ |
@@ -131,15 +154,63 @@ StickyBoard/
 - **Digital Clock** — Digital clock face for scheduling reminders inside the datetime picker
 - **Handwritten Font** — Handwritten typography for note cards using Google Font Caveat
 - **OTP Input Fields** — Auto-tabbing, individual digit box layout for verification codes
+- **Fully Responsive** — Mobile-first design with adaptive layouts for all screen sizes
+
+---
+
+## 📱 Mobile Responsiveness
+
+StickyBoard is fully optimized for mobile devices:
+
+- **Responsive header** with collapsible search and touch-friendly controls
+- **Adaptive note grid** that adjusts column count based on screen width
+- **Touch-optimized modals** with full-screen layouts on smaller screens
+- **Mobile-friendly navigation** with hamburger-style user menus
+- **Fluid typography** that scales appropriately across breakpoints
 
 ---
 
 ## 🔒 Security & Verification
 
-- **OTP Validation**: 6-digit numeric OTPs generated cryptographically with a 5-minute expiry, sent via Twilio WhatsApp.
+- **OTP Validation**: 6-digit numeric OTPs generated cryptographically with a 5-minute expiry, sent via Twilio WhatsApp or SMTP email.
 - **Local Dev Fallback**: In case Twilio is not configured, the server logs the generated OTP to the terminal console so development and testing can proceed seamlessly.
 - **Pass Hash**: Passwords are salted (16-byte cryptographically random salt) and hashed using SHA-256 before database insertion.
 - **Cascading Deletes**: Foreign key cascading deletes ensure deleting an account automatically erases all note records and reminder notifications from the database.
+
+---
+
+## ☁️ Deployment
+
+StickyBoard is deployed on **Render** with a **Neon PostgreSQL** database:
+
+| Component | Service |
+|---|---|
+| **Web Server** | [Render](https://render.com) (Free Tier) |
+| **Database** | [Neon](https://neon.tech) (Serverless PostgreSQL) |
+| **WhatsApp OTP** | [Twilio](https://twilio.com) (WhatsApp API) |
+| **Email OTP** | Gmail SMTP |
+
+### Deploy Your Own
+
+1. Fork this repository
+2. Create a [Neon](https://neon.tech) database and copy the connection string
+3. Create a [Render](https://render.com) web service pointing to your repo
+4. Set the environment variables (`DATABASE_URL`, `TWILIO_*`, `SMTP_*`) in Render
+5. Render will automatically run `build.sh` and start the app with `gunicorn`
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 19, Vite 8, React Router 7 |
+| **Styling** | Vanilla CSS with CSS variables, glassmorphism, gradients |
+| **Backend** | Python 3.10+, Flask 3 |
+| **Database** | PostgreSQL (Neon — serverless) |
+| **OTP & Notifications** | Twilio WhatsApp API, Gmail SMTP |
+| **Deployment** | Render, Gunicorn |
+| **Date Picker** | Flatpickr |
 
 ---
 
@@ -147,23 +218,28 @@ StickyBoard/
 
 | Action | How |
 |---|---|
-| **Register** | Click "Create one" → Fill in details → Verify OTP sent to WhatsApp |
+| **Register** | Click "Create one" → Fill in details → Verify OTP sent to WhatsApp/Email |
 | **Login** | Enter your username/email + password → Sign In |
 | **Create Note** | Click the **"New Note"** button in the header |
 | **Edit Note** | Hover a note → Click the ✏️ pencil icon (or double-click) |
 | **Delete Note** | Hover a note → Click the 🗑️ trash icon → Confirm |
 | **Change Color** | Hover a note → Click the 🎨 palette icon |
-| **Set Reminder** | Edit a note → Use the date/time picker (gets sent to WhatsApp) |
+| **Set Reminder** | Edit a note → Use the date/time picker (gets sent to WhatsApp/Email) |
 | **Search** | Type in the search bar at the top |
 | **Dark Mode** | Click the ☀️/🌙 toggle in the header |
 | **Reorder** | Drag and drop notes to rearrange them |
-| **Delete Account** | Click **"Delete Account"** at the bottom of the sidebar → Confirm |
+| **Settings** | Click profile icon → Settings to configure reminders & verification |
+| **About Me** | Click profile icon → About Me to view developer info |
+| **Delete Account** | Settings → "Delete Account" at the bottom → Confirm |
 | **Logout** | Click the ↗️ logout icon in the header |
 
 ---
 
 <div align="center">
 
-Made with ❤️ by Pranav
+Made with ❤️ by [Pranav](https://github.com/pranavpillai123)
+
+[![GitHub](https://img.shields.io/badge/GitHub-pranavpillai123-181717?style=flat-square&logo=github)](https://github.com/pranavpillai123)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Pranav_Pillai-0077B5?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/pranav-pillai-b0a154328/)
 
 </div>

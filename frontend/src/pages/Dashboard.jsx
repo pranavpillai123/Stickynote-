@@ -10,6 +10,7 @@ import NoteModal from '../components/NoteModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ColorPicker from '../components/ColorPicker';
 import SettingsModal from '../components/SettingsModal';
+import AboutModal from '../components/AboutModal';
 import '../styles/dashboard.css';
 
 export default function Dashboard() {
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [colorPicker, setColorPicker] = useState({ visible: false, noteId: null, position: { top: 0, left: 0 }, color: null });
   const { theme, toggleTheme } = useTheme();
   const showToast = useToast();
@@ -350,6 +352,7 @@ export default function Dashboard() {
         onToggleSidebar={handleToggleSidebar}
         sidebarOpen={sidebarOpen}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenAbout={() => setAboutOpen(true)}
       />
 
       <div className={`dashboard-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
@@ -546,6 +549,11 @@ export default function Dashboard() {
         onClose={() => setSettingsOpen(false)}
         onDeleteAccount={() => setDeleteAccountOpen(true)}
         username={username}
+      />
+
+      <AboutModal
+        visible={aboutOpen}
+        onClose={() => setAboutOpen(false)}
       />
     </>
   );

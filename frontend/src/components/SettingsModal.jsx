@@ -192,7 +192,10 @@ export default function SettingsModal({ visible, onClose, onDeleteAccount, usern
                 {username || 'User'}
               </span>
             </div>
+
           </div>
+
+
 
           {/* Reminder Settings */}
           <div className="settings-section">
