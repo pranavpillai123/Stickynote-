@@ -56,8 +56,10 @@ CORS(app, supports_credentials=True, origins=[
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    print("\n[!] WARNING: DATABASE_URL is not set in the environment or .env file.")
-    print("Falling back to local stickyboard.db configuration if running in offline mode.\n")
+    print("\n[!] FATAL: DATABASE_URL is not set in the environment or .env file.")
+    print("Please set DATABASE_URL to your PostgreSQL connection string (e.g. Neon).")
+    print("Example: DATABASE_URL=postgresql://user:pass@host/dbname?sslmode=require\n")
+    sys.exit(1)
 
 
 class PostgresConnectionWrapper:

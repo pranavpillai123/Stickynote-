@@ -25,6 +25,7 @@ notes.csv
 .env
 .env.local
 .env.*.local
+render.yaml
 
 # ── IDE / Editor ──
 .vscode/
